@@ -1,4 +1,4 @@
-!#!/usr/bin/env python3
+#!/usr/bin/env python3
 import asyncio
 import logging
 import datetime
@@ -7,13 +7,13 @@ from typing import Dict, Any, Optional
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ========== НАСТРОЙКА ЛОГИРОВАНИЯ ==========
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 logger = logging.getLogger("pill_bot")
@@ -142,10 +142,6 @@ PILL_REFUSED_TEXT = """
 Пожалуйста, вернись и прими их💋.
 """
 
-# Гиф-ссылки для сообщений
-WELCOME_GIF_URL = "https://giphy.com/gifs/4o5NRXQPzlByIVUiov.gif"  # Замените на актуальную гифку
-REMINDER_GIF_URL = "https://giphy.com/gifs/4o5NRXQPzlByIVUiov.gif"  # Замените на актуальную гифку
-
 # ========== ФУНКЦИИ ДЛЯ СОЗДАНИЯ КНОПОК ==========
 
 def create_main_keyboard(user_id: Optional[int] = None):
@@ -213,46 +209,20 @@ def create_settings_keyboard(user_id: int):
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-async def send_welcome_gif(user_id: int):
-    """Отправляет приветственную гифку с текстом"""
-    try:
-        # Отправляем гифку
-        await bot.send_animation(
-            chat_id=user_id,
-            animation=WELCOME_GIF_URL,
-            caption=get_welcome_text(user_id),
-            parse_mode=ParseMode.MARKDOWN
-        )
-    except Exception as e:
-        # Если не удалось отправить гифку, отправляем просто текст
-        logger.error(f"Ошибка при отправке гифки: {e}")
-        await bot.send_message(
-            chat_id=user_id,
-            text=get_welcome_text(user_id),
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=create_main_keyboard(user_id)
-        )
-
 async def send_main_page(user_id: int):
-    """Отправляет главную страницу с гифкой"""
-    try:
-        # Отправляем гифку
-        await bot.send_animation(
-            chat_id=user_id,
-            animation=WELCOME_GIF_URL,
-            caption="💊 *Вспоминаем о приеме таблеточек)*\n\nЭто как всегда твой Кирилл🥰\nЯ помогу тебе не забывать принимать таблеточки",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=create_main_keyboard(user_id)
-        )
-    except Exception as e:
-        # Если не удалось отправить гифку, отправляем просто текст
-        logger.error(f"Ошибка при отправке гифки: {e}")
-        await bot.send_message(
-            chat_id=user_id,
-            text="💊 *Вспоминаем о приеме таблеточек)*\n\nЭто как всегда твой Кирилл🥰\nЯ помогу тебе не забывать принимать таблеточки",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=create_main_keyboard(user_id)
-        )
+    """Отправляет главную страницу"""
+    welcome_text = (
+        "💊 *Вспоминаем о приеме таблеточек)*\n\n"
+        "Это как всегда твой Кирилл🥰\n"
+        "Я помогу тебе не забывать принимать таблеточки"
+    )
+    
+    await bot.send_message(
+        chat_id=user_id,
+        text=welcome_text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=create_main_keyboard(user_id)
+    )
 
 # ========== ОБРАБОТЧИКИ КОМАНД ==========
 
@@ -299,9 +269,13 @@ async def handle_start(message: Message):
             reply_markup=create_main_keyboard(user_id)
         )
 
-        # Отправляем приветственную гифку
+        # Отправляем приветственное сообщение
         await asyncio.sleep(0.5)
-        await send_welcome_gif(user_id)
+        await message.answer(
+            get_welcome_text(user_id),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=create_main_keyboard(user_id)
+        )
 
     except Exception as e:
         logger.error(f"Ошибка в handle_start: {e}")
@@ -675,11 +649,10 @@ async def check_daily_reminder():
                         logger.info(f"⏰🔔 Предварительное напоминание {reminder_hour:02d}:{reminder_minute:02d} ({city})! Отправляю пользователю {user_id}")
 
                         try:
-                            # Отправляем напоминание с гифкой
-                            await bot.send_animation(
+                            # Отправляем напоминание
+                            await bot.send_message(
                                 chat_id=user_id,
-                                animation=REMINDER_GIF_URL,
-                                caption=get_reminder_text(user_id, is_preliminary=True),
+                                text=get_reminder_text(user_id, is_preliminary=True),
                                 parse_mode=ParseMode.MARKDOWN,
                                 reply_markup=create_main_keyboard(user_id)
                             )
@@ -689,24 +662,16 @@ async def check_daily_reminder():
                         except Exception as e:
                             error_msg = str(e)
                             logger.error(f"❌ Не удалось отправить предварительное напоминание пользователю {user_id}: {error_msg}")
-                            # Пытаемся отправить просто текст
-                            await bot.send_message(
-                                chat_id=user_id,
-                                text=get_reminder_text(user_id, is_preliminary=True),
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=create_main_keyboard(user_id)
-                            )
 
                     # Проверяем, наступило ли время основного приема
                     if user_local_time.hour == pill_hour and user_local_time.minute == pill_minute:
                         logger.info(f"⏰🥹 Основное напоминание {pill_hour:02d}:{pill_minute:02d} ({city})! Отправляю пользователю {user_id}")
 
                         try:
-                            # Отправляем напоминание с гифкой
-                            await bot.send_animation(
+                            # Отправляем напоминание
+                            await bot.send_message(
                                 chat_id=user_id,
-                                animation=REMINDER_GIF_URL,
-                                caption=get_reminder_text(user_id, is_preliminary=False),
+                                text=get_reminder_text(user_id, is_preliminary=False),
                                 parse_mode=ParseMode.MARKDOWN,
                                 reply_markup=create_main_keyboard(user_id)
                             )
@@ -719,13 +684,6 @@ async def check_daily_reminder():
                         except Exception as e:
                             error_msg = str(e)
                             logger.error(f"❌ Не удалось отправить основное напоминание пользователю {user_id}: {error_msg}")
-                            # Пытаемся отправить просто текст
-                            await bot.send_message(
-                                chat_id=user_id,
-                                text=get_reminder_text(user_id, is_preliminary=False),
-                                parse_mode=ParseMode.MARKDOWN,
-                                reply_markup=create_main_keyboard(user_id)
-                            )
 
                             # Если пользователь заблокировал бота, удаляем его из списка
                             if any(phrase in error_msg.lower() for phrase in ["chat not found", "user is deactivated", "bot was blocked", "forbidden"]):
